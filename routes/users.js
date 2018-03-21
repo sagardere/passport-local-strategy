@@ -1,6 +1,7 @@
 var express = require('express');
 var router = express.Router();
 var passport = require('passport');
+var validator = require("email-validator");
 var LocalStrategy = require('passport-local').Strategy;
 
 var User = require('../models/user');
@@ -24,89 +25,124 @@ router.post('/register', (req, res) => {
 	var password2 = req.body.password2;
 
 	// Validation
-	req.checkBody('name', 'Name is required').notEmpty();
-	req.checkBody('email', 'Email is required').notEmpty();
-	req.checkBody('email', 'Email is not valid').isEmail();
-	req.checkBody('username', 'Username is required').notEmpty();
-	req.checkBody('password', 'Password is required').notEmpty();
-	req.checkBody('password2', 'Passwords do not match').equals(req.body.password);
+	if ((typeof name == undefined) || name == "") {
 
-	var errors = req.validationErrors();
+					let message = "Name not defined."
+           errors(message,req,res);
 
-	User.findOne({email: email}).exec((err, userInfo) => {
+        } else if (validator.validate(email) == false) {
 
-			if(userInfo){
-					//console.log("UserInfo : ",userInfo);
-					console.log("Email All Ready Exist...Login Another Email");
-					res.render('register',{
-					errors:errors
+        	let message = "Enter correct email address.."
+            errors(message,req,res);
+
+        } else if ((typeof username == undefined) || username == "") {
+
+        	let message = "Username not defined."
+            errors(message,req,res);
+
+        } else if ((typeof password == undefined) || password == "") {
+
+        	let message = "password not defined."
+        	  errors(message,req,res);
+
+        }  else if ((typeof password2 == undefined) || password2 == "") {
+
+						let message = "password not defined."
+        	  	errors(message,req,res);
+
+        } else if (password !== password2) {
+
+            let message = "Password does't match."
+        	  	errors(message,req,res);
+
+        } else {
+
+					User.findOne({email: email}).exec((err, userInfo) => {
+
+							if(userInfo){
+
+									console.log("Email all ready exist, Trying another email.");
+
+									res.render('register',{
+										error:'Email all ready exist, Trying another email.'
+									});
+
+								} else {
+									//user not exists in database.
+										var newUser = new User({
+											name: name,
+											email:email,
+											username: username,
+											password: password
+										});
+
+									User.createUser(newUser,(err, user) => {
+										if(err) throw err;
+										console.log("User Created Successfully.");
+										//console.log(user);
+									});
+
+									req.flash('success_msg', 'You are registered and can now login');
+
+									res.redirect('/users/login');
+								}
+					});//findOne
+		}
+});
+
+//define errors function
+	function errors(msg,req,res){
+
+		res.render('register',{
+						error:msg
 				});
 
-			} else {
-				//user not exists in databse.
-					var newUser = new User({
-						name: name,
-						email:email,
-						username: username,
-						password: password
-					});
+		}
 
-				User.createUser(newUser,(err, user) => {
-					if(err) throw err;
-					console.log("User Created Successfully.....Login Another Email");
-					//console.log(user);
-				});
+	passport.use(new LocalStrategy(
+	  (username, password, done) => {
+	   User.getUserByUsername(username,(err, user) => {
+	   	if(err) throw err;
+	   	console.log("@@@@",user);
+	   	if(!user){
+	   		return done(null, false, {message: 'Unknown User'});
+	   	}
 
-				req.flash('success_msg', 'You are registered and can now login');
+	   	User.comparePassword(password, user.password, (err, isMatch) => {
+	   		if(err) throw err;
+	   		if(isMatch){
+	   			return done(null, user);
+	   		} else {
+	   			return done(null, false, {message: 'Invalid password'});
+	   		}
+	   	});
+	   });
+	  }));
 
-				res.redirect('/users/login');
-			}
-	  });//findOne
-});
+	//serializeUser
+	passport.serializeUser((user, done) => {
+	  done(null, user.id);
+	});
 
-passport.use(new LocalStrategy(
-  (username, password, done) => {
-   User.getUserByUsername(username,(err, user) => {
-   	if(err) throw err;
-   	if(!user){
-   		return done(null, false, {message: 'Unknown User'});
-   	}
+	//deserializeUser
+	passport.deserializeUser((id, done) => {
+	  User.getUserById(id,(err, user) => {
+	    done(err, user);
+	  });
+	});
 
-   	User.comparePassword(password, user.password, (err, isMatch) => {
-   		if(err) throw err;
-   		if(isMatch){
-   			return done(null, user);
-   		} else {
-   			return done(null, false, {message: 'Invalid password'});
-   		}
-   	});
-   });
-  }));
+	router.post('/login',
+	  passport.authenticate('local', {successRedirect:'/', failureRedirect:'/users/login',failureFlash: true}),
+	  (req, res) => {
+	    res.redirect('/');
+	  });
 
-//serializeUser
-passport.serializeUser((user, done) => {
-  done(null, user.id);
-});
+	router.get('/logout', (req, res) => {
+		req.logout();
 
-//deserializeUser
-passport.deserializeUser((id, done) => {
-  User.getUserById(id,(err, user) => {
-    done(err, user);
-  });
-});
+		req.flash('success_msg', 'You are logged out');
 
-router.post('/login',
-  passport.authenticate('local', {successRedirect:'/', failureRedirect:'/users/login',failureFlash: true}),
-  (req, res) => {
-    res.redirect('/');
-  });
-
-router.get('/logout', (req, res) => {
-	req.logout();
-
-	req.flash('success_msg', 'You are logged out');
-
-	res.redirect('/users/login');
-});
+		res.redirect('/users/login');
+	});
 
 module.exports = router;
