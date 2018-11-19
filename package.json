@@ -8,6 +8,8 @@
     "body-parser": "*",
     "connect-flash": "*",
     "cookie-parser": "^1.4.1",
+    "cron": "^1.5.0",
+    "email-validator": "^2.0.4",
     "express": "*",
     "express-handlebars": "*",
     "express-messages": "*",

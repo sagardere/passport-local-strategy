@@ -8,141 +8,155 @@ var User = require('../models/user');
 
 // Register
 router.get('/register', (req, res) => {
-	res.render('register');
+  res.render('register');
 });
 
 // Login
 router.get('/login', (req, res) => {
-	res.render('login');
+  res.render('login');
 });
 
 // Register User
 router.post('/register', (req, res) => {
-	var name = req.body.name;
-	var email = req.body.email;
-	var username = req.body.username;
-	var password = req.body.password;
-	var password2 = req.body.password2;
+  var name = req.body.name;
+  var email = req.body.email;
+  var username = req.body.username;
+  var password = req.body.password;
+  var password2 = req.body.password2;
 
-	// Validation
-	if ((typeof name == undefined) || name == "") {
+  // Validation
+  if ((typeof name == undefined) || name == "") {
 
-					let message = "Name not defined."
-           errors(message,req,res);
+    let message = "Name not defined."
+    errors(message, req, res);
 
-        } else if (validator.validate(email) == false) {
+  }
+  else if (validator.validate(email) == false) {
 
-        	let message = "Enter correct email address.."
-            errors(message,req,res);
+    let message = "Enter correct email address.."
+    errors(message, req, res);
 
-        } else if ((typeof username == undefined) || username == "") {
+  }
+  else if ((typeof username == undefined) || username == "") {
 
-        	let message = "Username not defined."
-            errors(message,req,res);
+    let message = "Username not defined."
+    errors(message, req, res);
 
-        } else if ((typeof password == undefined) || password == "") {
+  }
+  else if ((typeof password == undefined) || password == "") {
 
-        	let message = "password not defined."
-        	  errors(message,req,res);
+    let message = "password not defined."
+    errors(message, req, res);
 
-        }  else if ((typeof password2 == undefined) || password2 == "") {
+  }
+  else if ((typeof password2 == undefined) || password2 == "") {
 
-						let message = "password not defined."
-        	  	errors(message,req,res);
+    let message = "password not defined."
+    errors(message, req, res);
 
-        } else if (password !== password2) {
+  }
+  else if (password !== password2) {
 
-            let message = "Password does't match."
-        	  	errors(message,req,res);
+    let message = "Password does't match."
+    errors(message, req, res);
 
-        } else {
+  }
+  else {
 
-					User.findOne({email: email}).exec((err, userInfo) => {
+    User.findOne({
+      email: email
+    }).exec((err, userInfo) => {
 
-							if(userInfo){
+      if (userInfo) {
 
-									console.log("Email all ready exist, Trying another email.");
+        console.log("Email all ready exist, Trying another email.");
 
-									res.render('register',{
-										error:'Email all ready exist, Trying another email.'
-									});
+        res.render('register', {
+          error: 'Email all ready exist, Trying another email.'
+        });
 
-								} else {
-									//user not exists in database.
-										var newUser = new User({
-											name: name,
-											email:email,
-											username: username,
-											password: password
-										});
+      }
+      else {
+        //user not exists in database.
+        var newUser = new User({
+          name: name,
+          email: email,
+          username: username,
+          password: password
+        });
 
-									User.createUser(newUser,(err, user) => {
-										if(err) throw err;
-										console.log("User Created Successfully.");
-										//console.log(user);
-									});
+        User.createUser(newUser, (err, user) => {
+          if (err) throw err;
+          console.log("User Created Successfully.");
+        });
 
-									req.flash('success_msg', 'You are registered and can now login');
+        req.flash('success_msg', 'You are registered and can now login');
 
-									res.redirect('/users/login');
-								}
-					});//findOne
-		}
+        res.redirect('/users/login');
+      }
+    }); //findOne
+  }
 });
 
 //define errors function
-	function errors(msg,req,res){
+function errors(msg, req, res) {
 
-		res.render('register',{
-						error:msg
-				});
+  res.render('register', {
+    error: msg
+  });
 
-		}
+}
 
-	passport.use(new LocalStrategy(
-	  (username, password, done) => {
-	   User.getUserByUsername(username,(err, user) => {
-	   	if(err) throw err;
-	   	console.log("@@@@",user);
-	   	if(!user){
-	   		return done(null, false, {message: 'Unknown User'});
-	   	}
+passport.use(new LocalStrategy(
+  (username, password, done) => {
+     User.getUserByUsername(username, (err, user) => {
+      if (err) throw err;
+      if (!user) {
+        return done(null, false, {
+          message: 'Unknown User'
+        });
+      }
 
-	   	User.comparePassword(password, user.password, (err, isMatch) => {
-	   		if(err) throw err;
-	   		if(isMatch){
-	   			return done(null, user);
-	   		} else {
-	   			return done(null, false, {message: 'Invalid password'});
-	   		}
-	   	});
-	   });
-	  }));
+      User.comparePassword(password, user.password, (err, isMatch) => {
+        if (err) throw err;
+        if (isMatch) {
+          return done(null, user);
+        }
+        else {
+          return done(null, false, {
+            message: 'Invalid password'
+          });
+        }
+      });
+    });
+  }));
 
-	//serializeUser
-	passport.serializeUser((user, done) => {
-	  done(null, user.id);
-	});
+//serializeUser
+passport.serializeUser((user, done) => {
+  done(null, user.id);
+});
 
-	//deserializeUser
-	passport.deserializeUser((id, done) => {
-	  User.getUserById(id,(err, user) => {
-	    done(err, user);
-	  });
-	});
+//deserializeUser
+passport.deserializeUser((id, done) => {
+  User.getUserById(id, (err, user) => {
+    done(err, user);
+  });
+});
 
-	router.post('/login',
-	  passport.authenticate('local', {successRedirect:'/', failureRedirect:'/users/login',failureFlash: true}),
-	  (req, res) => {
-	    res.redirect('/');
-	  });
+router.post('/login',
+  passport.authenticate('local', {
+    successRedirect: '/',
+    failureRedirect: '/users/login',
+    failureFlash: true
+  }),
+  (req, res) => {
+    res.redirect('/');
+  });
 
-	router.get('/logout', (req, res) => {
-		req.logout();
-
-		req.flash('success_msg', 'You are logged out');
-
-		res.redirect('/users/login');
-	});
+router.get('/logout', (req, res) => {
+  req.logout();
+  req.flash('success_msg', 'You are logged out');
+  res.redirect('/users/login');
+});
 
 module.exports = router;
